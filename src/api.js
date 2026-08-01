@@ -58,11 +58,14 @@ export async function fetchPipelineResources(
     {headers: {Accept: SDK_HEADER}},
   )
 
-  const apps = await Promise.all(
-    couplings
-      .filter((coupling) => coupling.stage === stage)
-      .map((coupling) => fetchAppResources(heroku, coupling.app.id)),
-  )
+  const [dynoSizesResponse, apps] = await Promise.all([
+    heroku.get('/dyno-sizes'),
+    Promise.all(
+      couplings
+        .filter((coupling) => coupling.stage === stage)
+        .map((coupling) => fetchAppResources(heroku, coupling.app.id)),
+    ),
+  ])
 
-  return {apps, pipeline}
+  return {apps, dynoSizes: dynoSizesResponse.body, pipeline}
 }

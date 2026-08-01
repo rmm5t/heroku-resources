@@ -35,7 +35,8 @@
   },
   "scripts": {
     "build": "oclif manifest",
-    "lint": "eslint src test",
+    "check:dyno-costs": "node scripts/check-dyno-costs.js",
+    "lint": "eslint src test scripts",
     "manifest": "oclif manifest",
     "prepack": "npm run build",
     "test": "npm run build && node --test"

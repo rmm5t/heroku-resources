@@ -1,6 +1,6 @@
 import {cpuForSize, memoryForSize, monthlyCostForSize} from './specs.js'
 
-export function buildReport(pipeline, stage, apps) {
+export function buildReport(pipeline, stage, apps, dynoSizes) {
   const addons = []
   const rows = []
   let addonMonthlyCostCents = 0
@@ -63,15 +63,16 @@ export function buildReport(pipeline, stage, apps) {
       const [process, dynoSize] = key.split('\0')
       const quantity = dynos.length
       const up = dynos.filter((dyno) => dyno.state === 'up').length
-      const ramPerDynoMb = memoryForSize(dynoSize)
+      const shielded = resources.app.space?.shield === true
+      const ramPerDynoMb = memoryForSize(dynoSize, shielded, dynoSizes)
       const formation = formationByType.get(process)
       const pricing = formation
-        ? monthlyCostForSize(formation.size, formation.quantity, resources.app.space?.shield === true)
+        ? monthlyCostForSize(formation.size, formation.quantity, shielded, dynoSizes)
         : {ecoPlan: false, monthlyCost: null}
 
       rows.push({
         app: resources.app.name,
-        cpu: cpuForSize(dynoSize, quantity),
+        cpu: cpuForSize(dynoSize, quantity, shielded, dynoSizes),
         dynoSize,
         dynos: quantity,
         ecoPlan: pricing.ecoPlan,

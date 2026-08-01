@@ -26,6 +26,7 @@ class FakeClient {
       '/apps/staging-id/addons': [],
       '/apps/staging-id/dynos': [{size: 'Basic', state: 'up', type: 'web'}],
       '/apps/staging-id/formation': [{quantity: 1, size: 'Basic', type: 'web'}],
+      '/dyno-sizes': [{compute: 1, memory: 0.5, name: 'Basic'}],
     }
     if (!(path in responses)) throw new Error(`Unexpected API path: ${path}`)
     return {body: responses[path]}
@@ -39,6 +40,7 @@ test('finds a pipeline and only fetches apps coupled to the requested stage', as
   assert.equal(result.pipeline.name, 'example')
   assert.deepEqual(result.apps.map(({app}) => app.name), ['staging-app'])
   assert.deepEqual(result.apps[0].addons, [])
+  assert.deepEqual(result.dynoSizes, [{compute: 1, memory: 0.5, name: 'Basic'}])
   assert.ok(client.calls.some(([, path]) => path === '/pipelines?eq[name]=example'))
   assert.ok(client.calls.every(([, path]) => !path.includes('production-id')))
   assert.deepEqual(client.calls.find(([, path]) => path === '/apps/staging-id/addons')[2], {
@@ -91,5 +93,6 @@ test('accepts a pipeline ID', async () => {
   assert.deepEqual(calls.map(([, path]) => path), [
     `/pipelines/${pipelineId}`,
     `/pipelines/${pipelineId}/pipeline-couplings`,
+    '/dyno-sizes',
   ])
 })

@@ -4,6 +4,61 @@ import test from 'node:test'
 import {formatReport} from '../src/format.js'
 import {buildReport} from '../src/report.js'
 
+const DYNO_SIZES = [
+  {
+    compute: 1,
+    cost: {cents: 700, unit: 'monthly'},
+    dedicated: false,
+    generation: {name: 'cedar'},
+    memory: 0.5,
+    name: 'Basic',
+  },
+  {
+    compute: 1,
+    cost: {cents: 2500, unit: 'monthly'},
+    dedicated: false,
+    generation: {name: 'cedar'},
+    memory: 0.5,
+    name: 'Standard-1X',
+  },
+  {
+    compute: 2,
+    cost: {cents: 5000, unit: 'monthly'},
+    dedicated: false,
+    generation: {name: 'cedar'},
+    memory: 1,
+    name: 'Standard-2X',
+  },
+  {
+    compute: 2,
+    cost: {cents: null, unit: null},
+    dedicated: true,
+    generation: {name: 'cedar'},
+    memory: 1,
+    name: 'Shield-S',
+  },
+  {
+    compute: 1,
+    cost: {cents: 0, unit: 'monthly'},
+    dedicated: false,
+    generation: {name: 'cedar'},
+    memory: 0.5,
+    name: 'Eco',
+  },
+  {
+    compute: 2,
+    cost: {cents: null, unit: null},
+    dedicated: true,
+    generation: {name: 'fir'},
+    memory: 8,
+    name: 'dyno-2c-8gb',
+  },
+]
+
+function buildTestReport(pipeline, stage, apps) {
+  return buildReport(pipeline, stage, apps, DYNO_SIZES)
+}
+
 function appResources(name, dynos, formation, options = {}) {
   return {
     app: {
@@ -18,7 +73,7 @@ function appResources(name, dynos, formation, options = {}) {
 }
 
 test('builds a sorted report and aggregates Cedar resources', () => {
-  const report = buildReport('example', 'production', [
+  const report = buildTestReport('example', 'production', [
     appResources(
       'zulu',
       [
@@ -59,7 +114,7 @@ test('builds a sorted report and aggregates Cedar resources', () => {
 })
 
 test('supports Fir vCPUs, Shield pricing, Eco plans, and unknown one-off costs', () => {
-  const report = buildReport('example', 'production', [
+  const report = buildTestReport('example', 'production', [
     appResources(
       'fir-app',
       [
@@ -96,7 +151,7 @@ test('supports Fir vCPUs, Shield pricing, Eco plans, and unknown one-off costs',
 })
 
 test('includes apps without dynos and formats the terminal report', () => {
-  const report = buildReport('example', 'staging', [appResources('empty-app', [], [])])
+  const report = buildTestReport('example', 'staging', [appResources('empty-app', [], [])])
   const output = formatReport(report)
 
   assert.match(output, /^Pipeline: example \(staging\)/)
@@ -108,7 +163,7 @@ test('includes apps without dynos and formats the terminal report', () => {
 })
 
 test('reports add-on services and their billed costs separately', () => {
-  const report = buildReport('example', 'production', [
+  const report = buildTestReport('example', 'production', [
     appResources('zulu', [], [], {
       addons: [
         {
@@ -184,13 +239,13 @@ test('reports add-on services and their billed costs separately', () => {
 })
 
 test('formats an empty stage without a table', () => {
-  const report = buildReport('example', 'development', [])
+  const report = buildTestReport('example', 'development', [])
 
   assert.equal(formatReport(report), 'Pipeline: example (development)\n\nNo apps found in the development stage.')
 })
 
 test('uses singular summary labels', () => {
-  const report = buildReport('example', 'production', [
+  const report = buildTestReport('example', 'production', [
     appResources(
       'only-app',
       [{size: 'Basic', state: 'up', type: 'web'}],
@@ -210,4 +265,27 @@ test('uses singular summary labels', () => {
 
   assert.match(output, /Total: 1 app, 1 dyno, 1 up/)
   assert.match(output, /Total: 1 add-on, \$0\/month estimated/)
+})
+
+test('uses live dyno size metadata for resources and public pricing', () => {
+  const dynoSizes = [{
+    compute: 7,
+    cost: {cents: 1234, unit: 'monthly'},
+    dedicated: true,
+    generation: {name: 'cedar'},
+    memory: 3.5,
+    name: 'Custom-Dyno',
+  }]
+  const report = buildReport('example', 'production', [
+    appResources(
+      'custom-app',
+      [{size: 'Custom-Dyno', state: 'up', type: 'web'}],
+      [{quantity: 1, size: 'Custom-Dyno', type: 'web'}],
+    ),
+  ], dynoSizes)
+
+  assert.equal(report.rows[0].ramPerDynoMb, 3584)
+  assert.equal(report.rows[0].cpu, '1 dedicated (7x)')
+  assert.equal(report.rows[0].monthlyCost, 12.34)
+  assert.match(formatReport(report), /\$12\.34\/mo/)
 })

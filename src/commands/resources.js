@@ -37,8 +37,8 @@ export default class Resources extends Command {
   async run() {
     const {args, flags} = await this.parse(Resources)
     const pipelineName = flags.pipeline ?? await defaultPipelineName()
-    const {apps, pipeline} = await fetchPipelineResources(this.heroku, pipelineName, args.stage)
-    const report = buildReport(pipeline.name, args.stage, apps)
+    const {apps, dynoSizes, pipeline} = await fetchPipelineResources(this.heroku, pipelineName, args.stage)
+    const report = buildReport(pipeline.name, args.stage, apps, dynoSizes)
 
     if (!this.jsonEnabled()) this.log(formatReport(report))
     return report

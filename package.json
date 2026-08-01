@@ -1,6 +1,6 @@
 {
   "name": "heroku-resources",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Report dyno resources and estimated costs for apps in a Heroku pipeline stage",
   "author": "Ryan McGeary <ryan@mcgeary.org>",
   "bugs": {

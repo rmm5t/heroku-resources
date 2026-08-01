@@ -1,0 +1,74 @@
+function formatMemory(megabytes) {
+  if (megabytes === null) return 'n/a'
+  if (megabytes < 1024) return `${megabytes} MB`
+
+  const gigabytes = megabytes / 1024
+  return `${Number.isInteger(gigabytes) ? gigabytes : gigabytes.toFixed(1)} GB`
+}
+
+function formatCost(row) {
+  if (row.ecoPlan) return '$5 shared'
+  if (row.monthlyCost === null) return 'n/a'
+  return `$${row.monthlyCost}`
+}
+
+function renderTable(headers, rows, rightAlignedColumns) {
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index].length)),
+  )
+  const rightAligned = new Set(rightAlignedColumns)
+  const render = (row) => row
+    .map((value, index) => rightAligned.has(index) ? value.padStart(widths[index]) : value.padEnd(widths[index]))
+    .join('  ')
+    .trimEnd()
+
+  return [
+    render(headers),
+    widths.map((width) => '-'.repeat(width)).join('  '),
+    ...rows.map(render),
+  ].join('\n')
+}
+
+function formatCostTotal(report) {
+  const parts = []
+  if (report.summary.estimatedMonthlyCost > 0 || !report.summary.includesEcoPlan) {
+    parts.push(`$${report.summary.estimatedMonthlyCost}`)
+  }
+
+  if (report.summary.includesEcoPlan) parts.push('shared $5 Eco plan')
+  if (report.summary.unknownCost) parts.push('unknown')
+  return parts.join(' + ')
+}
+
+export function formatReport(report) {
+  const output = [`Pipeline: ${report.pipeline} (${report.stage})`, '']
+  if (report.rows.length === 0) {
+    output.push(`No apps found in the ${report.stage} stage.`)
+    return output.join('\n')
+  }
+
+  const rows = report.rows.map((row) => [
+    row.app,
+    row.process,
+    row.dynoSize,
+    row.dynos.toString(),
+    row.up.toString(),
+    formatMemory(row.ramPerDynoMb),
+    row.cpu,
+    formatCost(row),
+  ])
+  output.push(renderTable(
+    ['App', 'Process', 'Dyno size', 'Dynos', 'Up', 'RAM/dyno', 'CPU', 'Cost'],
+    rows,
+    [3, 4, 5, 6, 7],
+  ))
+
+  const memoryTotal = `${formatMemory(report.summary.allocatedRamMb)}${report.summary.unknownRam ? ' + unknown' : ''}`
+  output.push('')
+  output.push(
+    `Total: ${report.summary.appCount} apps, ${report.summary.dynoCount} dynos, `
+    + `${report.summary.upCount} up, ${memoryTotal} allocated RAM, ${formatCostTotal(report)}/month estimated`,
+  )
+  output.push('Allocation is based on dyno size; live CPU and RAM utilization is not available from the Heroku Platform API.')
+  return output.join('\n')
+}

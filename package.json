@@ -1,0 +1,41 @@
+{
+  "name": "heroku-resources",
+  "version": "0.1.0",
+  "description": "Report dyno resources and estimated costs for apps in a Heroku pipeline stage",
+  "author": "Ryan McGeary <ryan@mcgeary.org>",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "src",
+    "oclif.manifest.json"
+  ],
+  "keywords": [
+    "heroku",
+    "heroku-cli-plugin",
+    "heroku-plugin",
+    "oclif"
+  ],
+  "oclif": {
+    "bin": "heroku",
+    "commands": "./src/commands"
+  },
+  "scripts": {
+    "build": "oclif manifest",
+    "lint": "eslint src",
+    "manifest": "oclif manifest",
+    "prepack": "npm run build",
+    "test": "npm run build && node --test"
+  },
+  "dependencies": {
+    "@heroku-cli/command": "^13.0.1",
+    "@oclif/core": "^4.13.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "oclif": "^4.23.29"
+  }
+}

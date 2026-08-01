@@ -1,0 +1,5 @@
+node_modules/
+oclif.manifest.json
+coverage/
+*.log
+.DS_Store

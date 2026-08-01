@@ -27,13 +27,20 @@ async function findPipeline(heroku, nameOrId) {
 }
 
 async function fetchAppResources(heroku, appId) {
-  const [appResponse, dynosResponse, formationResponse] = await Promise.all([
+  const [appResponse, dynosResponse, formationResponse, addonsResponse] = await Promise.all([
     heroku.get(`/apps/${appId}`),
     heroku.get(`/apps/${appId}/dynos`),
     heroku.get(`/apps/${appId}/formation`),
+    heroku.get(`/apps/${appId}/addons`, {
+      headers: {
+        Accept: SDK_HEADER,
+        'Accept-Expansion': 'addon_service,plan',
+      },
+    }),
   ])
 
   return {
+    addons: addonsResponse.body,
     app: appResponse.body,
     dynos: dynosResponse.body,
     formation: formationResponse.body,

@@ -1,7 +1,10 @@
 import {cpuForSize, memoryForSize, monthlyCostForSize} from './specs.js'
 
 export function buildReport(pipeline, stage, apps) {
+  const addons = []
   const rows = []
+  let addonMonthlyCostCents = 0
+  let addonUnknownCost = false
   let allocatedRamMb = 0
   let dynoCount = 0
   let estimatedMonthlyCost = 0
@@ -11,6 +14,30 @@ export function buildReport(pipeline, stage, apps) {
   let upCount = 0
 
   for (const resources of [...apps].sort((left, right) => left.app.name.localeCompare(right.app.name))) {
+    for (const addon of resources.addons ?? []) {
+      const price = addon.billed_price ?? addon.plan?.price ?? null
+      const costCents = Number.isFinite(price?.cents) ? price.cents : null
+      const costUnit = price?.unit ?? null
+      const contract = price?.contract === true
+      const metered = price?.metered === true
+
+      addons.push({
+        app: resources.app.name,
+        contract,
+        costCents,
+        costUnit,
+        metered,
+        name: addon.name,
+        plan: addon.plan?.human_name ?? addon.plan?.name?.replace(/^[^:]+:/, '') ?? '?',
+        service: addon.addon_service?.human_name ?? addon.addon_service?.name ?? '?',
+        state: addon.state ?? 'unknown',
+      })
+
+      if (costCents === null || costUnit !== 'month' || contract) addonUnknownCost = true
+      else addonMonthlyCostCents += costCents
+      if (metered) addonUnknownCost = true
+    }
+
     if (resources.dynos.length === 0) {
       rows.push({
         app: resources.app.name,
@@ -67,6 +94,17 @@ export function buildReport(pipeline, stage, apps) {
   }
 
   return {
+    addonSummary: {
+      addonCount: addons.length,
+      estimatedMonthlyCostCents: addonMonthlyCostCents,
+      unknownCost: addonUnknownCost,
+    },
+    addons: addons.sort((left, right) =>
+      left.app.localeCompare(right.app)
+      || left.service.localeCompare(right.service)
+      || left.plan.localeCompare(right.plan)
+      || left.name.localeCompare(right.name),
+    ),
     pipeline,
     rows,
     stage,

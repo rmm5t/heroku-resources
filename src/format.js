@@ -7,9 +7,23 @@ function formatMemory(megabytes) {
 }
 
 function formatCost(row) {
-  if (row.ecoPlan) return '$5 shared'
+  if (row.ecoPlan) return '$5/mo shared'
   if (row.monthlyCost === null) return 'n/a'
-  return `$${row.monthlyCost}`
+  return `$${row.monthlyCost}/mo`
+}
+
+function formatCurrency(cents) {
+  const dollars = cents / 100
+  return `$${Number.isInteger(dollars) ? dollars : dollars.toFixed(2)}`
+}
+
+function formatAddonCost(addon) {
+  if (addon.contract) return 'contract'
+  if (addon.costCents === null) return 'n/a'
+
+  const unit = addon.costUnit === 'month' ? 'mo' : addon.costUnit
+  const cost = `${formatCurrency(addon.costCents)}${unit ? `/${unit}` : ''}`
+  return addon.metered ? `${cost} + usage` : cost
 }
 
 function renderTable(headers, rows, rightAlignedColumns) {
@@ -70,5 +84,28 @@ export function formatReport(report) {
     + `${report.summary.upCount} up, ${memoryTotal} allocated RAM, ${formatCostTotal(report)}/month estimated`,
   )
   output.push('Allocation is based on dyno size; live CPU and RAM utilization is not available from the Heroku Platform API.')
+  output.push('', 'Add-ons', '')
+
+  if (report.addons.length === 0) {
+    output.push('No add-ons.')
+    return output.join('\n')
+  }
+
+  const addonRows = report.addons.map((addon) => [
+    addon.app,
+    addon.service,
+    addon.plan,
+    addon.state,
+    formatAddonCost(addon),
+  ])
+  output.push(renderTable(
+    ['App', 'Service', 'Plan', 'State', 'Cost'],
+    addonRows,
+    [4],
+  ))
+
+  const addonCost = `${formatCurrency(report.addonSummary.estimatedMonthlyCostCents)}/month estimated`
+  const unknownAddonCost = report.addonSummary.unknownCost ? ' + unknown costs' : ''
+  output.push('', `Total: ${report.addonSummary.addonCount} add-ons, ${addonCost}${unknownAddonCost}`)
   return output.join('\n')
 }

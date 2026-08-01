@@ -25,9 +25,9 @@ heroku resources production --pipeline another-pipeline
 heroku resources --json
 ```
 
-The report includes each app's process type, dyno size and quantity, running count, RAM per dyno, CPU allocation, and estimated maximum monthly cost. Its summary includes total allocated RAM and estimated monthly cost for the selected stage.
+The report includes each app's process type, dyno size and quantity, running count, RAM per dyno, CPU allocation, and estimated maximum monthly cost. A separate add-on table shows each service's plan, state, and billed cost. The summaries include total allocated RAM and separate dyno and add-on monthly cost estimates for the selected stage.
 
-Cost estimates use the monthly prices maintained by Heroku CLI's `ps:type` command. Eco dynos are identified as sharing the account-level $5 Eco plan. CPU and RAM values are allocations based on dyno size, not live utilization.
+Dyno cost estimates use the monthly prices maintained by Heroku CLI's `ps:type` command. Add-on estimates use each resource's billed price, with metered and contract costs identified as unknown. Eco dynos are identified as sharing the account-level $5 Eco plan. CPU and RAM values are allocations based on dyno size, not live utilization.
 
 ## Development
 

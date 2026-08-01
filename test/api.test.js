@@ -23,6 +23,7 @@ class FakeClient {
         {app: {id: 'staging-id'}, stage: 'staging'},
       ],
       '/apps/staging-id': {id: 'staging-id', name: 'staging-app'},
+      '/apps/staging-id/addons': [],
       '/apps/staging-id/dynos': [{size: 'Basic', state: 'up', type: 'web'}],
       '/apps/staging-id/formation': [{quantity: 1, size: 'Basic', type: 'web'}],
     }
@@ -37,8 +38,15 @@ test('finds a pipeline and only fetches apps coupled to the requested stage', as
 
   assert.equal(result.pipeline.name, 'example')
   assert.deepEqual(result.apps.map(({app}) => app.name), ['staging-app'])
+  assert.deepEqual(result.apps[0].addons, [])
   assert.ok(client.calls.some(([, path]) => path === '/pipelines?eq[name]=example'))
   assert.ok(client.calls.every(([, path]) => !path.includes('production-id')))
+  assert.deepEqual(client.calls.find(([, path]) => path === '/apps/staging-id/addons')[2], {
+    headers: {
+      Accept: 'application/vnd.heroku+json; version=3.sdk',
+      'Accept-Expansion': 'addon_service,plan',
+    },
+  })
 })
 
 test('reports a missing pipeline', async () => {

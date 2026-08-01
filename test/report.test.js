@@ -11,6 +11,7 @@ function appResources(name, dynos, formation, options = {}) {
       name,
       space: options.shielded ? {shield: true} : null,
     },
+    addons: options.addons ?? [],
     dynos,
     formation,
   }
@@ -90,6 +91,7 @@ test('supports Fir vCPUs, Shield pricing, Eco plans, and unknown one-off costs',
   assert.equal(report.rows.find((row) => row.process === 'run').monthlyCost, null)
   assert.equal(report.summary.includesEcoPlan, true)
   assert.equal(report.summary.unknownCost, true)
+  assert.match(formatReport(report), /\$5\/mo shared/)
   assert.match(formatReport(report), /shared \$5 Eco plan \+ unknown\/month estimated/)
 })
 
@@ -100,7 +102,72 @@ test('includes apps without dynos and formats the terminal report', () => {
   assert.match(output, /^Pipeline: example \(staging\)/)
   assert.match(output, /RAM\/dyno\s+CPU\s+Cost/)
   assert.match(output, /empty-app\s+\(none\)/)
+  assert.match(output, /\$0\/mo/)
   assert.match(output, /Total: 1 apps, 0 dynos, 0 up, 0 MB allocated RAM, \$0\/month estimated/)
+  assert.match(output, /Add-ons\n\nNo add-ons\./)
+})
+
+test('reports add-on services and their billed costs separately', () => {
+  const report = buildReport('example', 'production', [
+    appResources('zulu', [], [], {
+      addons: [
+        {
+          addon_service: {human_name: 'Metered Service', name: 'metered'},
+          billed_price: {cents: 1250, contract: false, metered: true, unit: 'month'},
+          name: 'metered-example',
+          plan: {human_name: 'Usage', name: 'metered:usage'},
+          state: 'provisioned',
+        },
+        {
+          addon_service: {human_name: 'Contract Service', name: 'contract'},
+          billed_price: {cents: 10_000, contract: true, metered: false, unit: 'month'},
+          name: 'contract-example',
+          plan: {human_name: 'Enterprise', name: 'contract:enterprise'},
+          state: 'provisioning',
+        },
+      ],
+    }),
+    appResources('alpha', [], [], {
+      addons: [
+        {
+          addon_service: {human_name: 'AppSignal APM', name: 'appsignal'},
+          billed_price: null,
+          name: 'appsignal-example',
+          plan: {
+            human_name: '3M',
+            name: 'appsignal:small',
+            price: {cents: 5500, contract: false, metered: false, unit: 'month'},
+          },
+          state: 'provisioned',
+        },
+      ],
+    }),
+  ])
+
+  assert.deepEqual(report.addons.map((addon) => addon.app), ['alpha', 'zulu', 'zulu'])
+  assert.deepEqual(report.addons[0], {
+    app: 'alpha',
+    contract: false,
+    costCents: 5500,
+    costUnit: 'month',
+    metered: false,
+    name: 'appsignal-example',
+    plan: '3M',
+    service: 'AppSignal APM',
+    state: 'provisioned',
+  })
+  assert.deepEqual(report.addonSummary, {
+    addonCount: 3,
+    estimatedMonthlyCostCents: 6750,
+    unknownCost: true,
+  })
+
+  const output = formatReport(report)
+  assert.match(output, /App\s+Service\s+Plan\s+State\s+Cost/)
+  assert.match(output, /AppSignal APM\s+3M\s+provisioned\s+\$55\/mo/)
+  assert.match(output, /Metered Service\s+Usage\s+provisioned\s+\$12\.50\/mo \+ usage/)
+  assert.match(output, /Contract Service\s+Enterprise\s+provisioning\s+contract/)
+  assert.match(output, /Total: 3 add-ons, \$67\.50\/month estimated \+ unknown costs/)
 })
 
 test('formats an empty stage without a table', () => {

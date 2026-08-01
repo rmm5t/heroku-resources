@@ -4,12 +4,10 @@ A Heroku CLI plugin that reports dyno resources and estimated monthly costs for 
 
 ## Installation
 
-Install dependencies, build the manifest, and install the local package into the Heroku CLI:
+Install the published plugin from npm:
 
 ```sh
-npm install
-npm run build
-heroku plugins:install file:$HOME/work/oss/heroku-resources
+heroku plugins:install heroku-resources
 ```
 
 ## Usage
@@ -34,8 +32,11 @@ Cost estimates use the monthly prices maintained by Heroku CLI's `ps:type` comma
 ## Development
 
 ```sh
+npm install
 npm test
 npm run lint
+npm run build
+heroku plugins:install file:$HOME/work/oss/heroku-resources
 ```
 
 To remove the local installation:
@@ -43,6 +44,17 @@ To remove the local installation:
 ```sh
 heroku plugins:uninstall heroku-resources
 ```
+
+## Publishing
+
+Authenticate with npm before release:
+
+```sh
+npm login
+npm whoami
+```
+
+Use `npm publish`
 
 ## License
 

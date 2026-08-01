@@ -3,7 +3,15 @@
   "version": "0.1.0",
   "description": "Report dyno resources and estimated costs for apps in a Heroku pipeline stage",
   "author": "Ryan McGeary <ryan@mcgeary.org>",
+  "bugs": {
+    "url": "https://github.com/rmm5t/heroku-resources/issues"
+  },
+  "homepage": "https://github.com/rmm5t/heroku-resources",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmm5t/heroku-resources.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -22,9 +30,12 @@
     "bin": "heroku",
     "commands": "./src/commands"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "oclif manifest",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "manifest": "oclif manifest",
     "prepack": "npm run build",
     "test": "npm run build && node --test"

@@ -103,7 +103,7 @@ test('includes apps without dynos and formats the terminal report', () => {
   assert.match(output, /RAM\/dyno\s+CPU\s+Cost/)
   assert.match(output, /empty-app\s+\(none\)/)
   assert.match(output, /\$0\/mo/)
-  assert.match(output, /Total: 1 apps, 0 dynos, 0 up, 0 MB allocated RAM, \$0\/month estimated/)
+  assert.match(output, /Total: 1 app, 0 dynos, 0 up, 0 MB allocated RAM, \$0\/month estimated/)
   assert.match(output, /Add-ons\n\nNo add-ons\./)
 })
 
@@ -174,4 +174,27 @@ test('formats an empty stage without a table', () => {
   const report = buildReport('example', 'development', [])
 
   assert.equal(formatReport(report), 'Pipeline: example (development)\n\nNo apps found in the development stage.')
+})
+
+test('uses singular summary labels', () => {
+  const report = buildReport('example', 'production', [
+    appResources(
+      'only-app',
+      [{size: 'Basic', state: 'up', type: 'web'}],
+      [{quantity: 1, size: 'Basic', type: 'web'}],
+      {
+        addons: [{
+          addon_service: {human_name: 'Example Service'},
+          billed_price: {cents: 0, contract: false, metered: false, unit: 'month'},
+          name: 'example-addon',
+          plan: {human_name: 'Free'},
+          state: 'provisioned',
+        }],
+      },
+    ),
+  ])
+  const output = formatReport(report)
+
+  assert.match(output, /Total: 1 app, 1 dyno, 1 up/)
+  assert.match(output, /Total: 1 add-on, \$0\/month estimated/)
 })

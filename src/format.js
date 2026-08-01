@@ -26,6 +26,10 @@ function formatAddonCost(addon) {
   return addon.metered ? `${cost} + usage` : cost
 }
 
+function pluralize(count, singular, plural = `${singular}s`) {
+  return count === 1 ? singular : plural
+}
+
 function renderTable(headers, rows, rightAlignedColumns) {
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index].length)),
@@ -80,7 +84,8 @@ export function formatReport(report) {
   const memoryTotal = `${formatMemory(report.summary.allocatedRamMb)}${report.summary.unknownRam ? ' + unknown' : ''}`
   output.push('')
   output.push(
-    `Total: ${report.summary.appCount} apps, ${report.summary.dynoCount} dynos, `
+    `Total: ${report.summary.appCount} ${pluralize(report.summary.appCount, 'app')}, `
+    + `${report.summary.dynoCount} ${pluralize(report.summary.dynoCount, 'dyno')}, `
     + `${report.summary.upCount} up, ${memoryTotal} allocated RAM, ${formatCostTotal(report)}/month estimated`,
   )
   output.push('Allocation is based on dyno size; live CPU and RAM utilization is not available from the Heroku Platform API.')
@@ -106,6 +111,7 @@ export function formatReport(report) {
 
   const addonCost = `${formatCurrency(report.addonSummary.estimatedMonthlyCostCents)}/month estimated`
   const unknownAddonCost = report.addonSummary.unknownCost ? ' + unknown costs' : ''
-  output.push('', `Total: ${report.addonSummary.addonCount} add-ons, ${addonCost}${unknownAddonCost}`)
+  const addonLabel = pluralize(report.addonSummary.addonCount, 'add-on')
+  output.push('', `Total: ${report.addonSummary.addonCount} ${addonLabel}, ${addonCost}${unknownAddonCost}`)
   return output.join('\n')
 }

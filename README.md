@@ -35,7 +35,7 @@ App                 Process  Dyno size    Dynos  Up  RAM/dyno        CPU    Cost
 example-production  web      Standard-1X      2   2    512 MB  2x shared  $50/mo
 example-production  worker   Standard-2X      1   1      1 GB  2x shared  $50/mo
 
-Total: 1 apps, 3 dynos, 3 up, 2 GB allocated RAM, $100/month estimated
+Total: 1 app, 3 dynos, 3 up, 2 GB allocated RAM, $100/month estimated
 Allocation is based on dyno size; live CPU and RAM utilization is not available from the Heroku Platform API.
 
 Add-ons
@@ -59,13 +59,14 @@ npm install
 npm test
 npm run lint
 npm run build
-heroku plugins:install file:$HOME/work/oss/heroku-resources
+heroku plugins:link .
 ```
 
-To remove the local installation:
+The linked working copy takes precedence over an npm-installed version. Return to the published version with:
 
 ```sh
-heroku plugins:uninstall heroku-resources
+heroku plugins:unlink heroku-resources
+heroku plugins:install heroku-resources
 ```
 
 ## Publishing

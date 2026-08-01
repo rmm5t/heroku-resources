@@ -125,13 +125,24 @@ test('reports add-on services and their billed costs separately', () => {
           plan: {human_name: 'Enterprise', name: 'contract:enterprise'},
           state: 'provisioning',
         },
+        {
+          addon_service: {human_name: 'Unknown Service', name: 'unknown'},
+          billed_price: null,
+          name: 'unknown-example',
+          plan: {
+            human_name: 'Published Price',
+            name: 'unknown:published',
+            price: {cents: 9900, contract: false, metered: false, unit: 'month'},
+          },
+          state: 'provisioned',
+        },
       ],
     }),
     appResources('alpha', [], [], {
       addons: [
         {
           addon_service: {human_name: 'AppSignal APM', name: 'appsignal'},
-          billed_price: null,
+          billed_price: {cents: 5500, contract: false, metered: false, unit: 'month'},
           name: 'appsignal-example',
           plan: {
             human_name: '3M',
@@ -144,7 +155,7 @@ test('reports add-on services and their billed costs separately', () => {
     }),
   ])
 
-  assert.deepEqual(report.addons.map((addon) => addon.app), ['alpha', 'zulu', 'zulu'])
+  assert.deepEqual(report.addons.map((addon) => addon.app), ['alpha', 'zulu', 'zulu', 'zulu'])
   assert.deepEqual(report.addons[0], {
     app: 'alpha',
     contract: false,
@@ -157,17 +168,19 @@ test('reports add-on services and their billed costs separately', () => {
     state: 'provisioned',
   })
   assert.deepEqual(report.addonSummary, {
-    addonCount: 3,
-    estimatedMonthlyCostCents: 6750,
+    addonCount: 4,
+    estimatedMonthlyCostCents: 5500,
     unknownCost: true,
   })
+  assert.equal(report.addons.find((addon) => addon.service === 'Unknown Service').costCents, null)
 
   const output = formatReport(report)
   assert.match(output, /App\s+Service\s+Plan\s+State\s+Cost/)
   assert.match(output, /AppSignal APM\s+3M\s+provisioned\s+\$55\/mo/)
-  assert.match(output, /Metered Service\s+Usage\s+provisioned\s+\$12\.50\/mo \+ usage/)
+  assert.match(output, /Metered Service\s+Usage\s+provisioned\s+metered/)
   assert.match(output, /Contract Service\s+Enterprise\s+provisioning\s+contract/)
-  assert.match(output, /Total: 3 add-ons, \$67\.50\/month estimated \+ unknown costs/)
+  assert.match(output, /Unknown Service\s+Published Price\s+provisioned\s+n\/a/)
+  assert.match(output, /Total: 4 add-ons, \$55\/month estimated \+ unknown costs/)
 })
 
 test('formats an empty stage without a table', () => {

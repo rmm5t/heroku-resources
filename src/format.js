@@ -19,11 +19,11 @@ function formatCurrency(cents) {
 
 function formatAddonCost(addon) {
   if (addon.contract) return 'contract'
+  if (addon.metered) return 'metered'
   if (addon.costCents === null) return 'n/a'
 
   const unit = addon.costUnit === 'month' ? 'mo' : addon.costUnit
-  const cost = `${formatCurrency(addon.costCents)}${unit ? `/${unit}` : ''}`
-  return addon.metered ? `${cost} + usage` : cost
+  return `${formatCurrency(addon.costCents)}${unit ? `/${unit}` : ''}`
 }
 
 function pluralize(count, singular, plural = `${singular}s`) {

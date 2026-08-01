@@ -15,7 +15,7 @@ export function buildReport(pipeline, stage, apps) {
 
   for (const resources of [...apps].sort((left, right) => left.app.name.localeCompare(right.app.name))) {
     for (const addon of resources.addons ?? []) {
-      const price = addon.billed_price ?? addon.plan?.price ?? null
+      const price = addon.billed_price ?? null
       const costCents = Number.isFinite(price?.cents) ? price.cents : null
       const costUnit = price?.unit ?? null
       const contract = price?.contract === true
@@ -33,9 +33,8 @@ export function buildReport(pipeline, stage, apps) {
         state: addon.state ?? 'unknown',
       })
 
-      if (costCents === null || costUnit !== 'month' || contract) addonUnknownCost = true
+      if (costCents === null || costUnit !== 'month' || contract || metered) addonUnknownCost = true
       else addonMonthlyCostCents += costCents
-      if (metered) addonUnknownCost = true
     }
 
     if (resources.dynos.length === 0) {

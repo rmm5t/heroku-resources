@@ -25,6 +25,29 @@ heroku resources production --pipeline another-pipeline
 heroku resources --json
 ```
 
+Example output:
+
+```text
+Pipeline: example (production)
+
+App                 Process  Dyno size    Dynos  Up  RAM/dyno        CPU    Cost
+------------------  -------  -----------  -----  --  --------  ---------  ------
+example-production  web      Standard-1X      2   2    512 MB  2x shared  $50/mo
+example-production  worker   Standard-2X      1   1      1 GB  2x shared  $50/mo
+
+Total: 1 apps, 3 dynos, 3 up, 2 GB allocated RAM, $100/month estimated
+Allocation is based on dyno size; live CPU and RAM utilization is not available from the Heroku Platform API.
+
+Add-ons
+
+App                 Service          Plan         State         Cost
+------------------  ---------------  -----------  -----------  -----
+example-production  Heroku Postgres  Essential 1  provisioned  $9/mo
+example-production  Papertrail       Fixa         provisioned  $8/mo
+
+Total: 2 add-ons, $17/month estimated
+```
+
 The report includes each app's process type, dyno size and quantity, running count, RAM per dyno, CPU allocation, and estimated maximum monthly cost. A separate add-on table shows each service's plan, state, and billed cost. The summaries include total allocated RAM and separate dyno and add-on monthly cost estimates for the selected stage.
 
 Dyno cost estimates use the monthly prices maintained by Heroku CLI's `ps:type` command. Add-on estimates use each resource's billed price, with metered and contract costs identified as unknown. Eco dynos are identified as sharing the account-level $5 Eco plan. CPU and RAM values are allocations based on dyno size, not live utilization.

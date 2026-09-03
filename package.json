@@ -48,6 +48,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.2",
     "eslint": "^9.39.2",
-    "oclif": "^4.23.29"
+    "oclif": "^4.23.29",
+    "tsx": "^4.23.13"
   }
 }

@@ -1,3 +1,5 @@
+import {normalizeAddonPlan} from './addon-plans.js'
+
 function formatMemory(megabytes) {
   if (megabytes === null) return 'n/a'
   if (megabytes < 1024) return `${megabytes} MB`
@@ -24,6 +26,14 @@ function formatAddonCost(addon) {
 
   const unit = addon.costUnit === 'month' ? 'mo' : addon.costUnit
   return `${formatCurrency(addon.costCents)}${unit ? `/${unit}` : ''}`
+}
+
+function formatAddonPlan(addon) {
+  if (addon.planChangePending && addon.activePlan && addon.plan !== '?'
+    && normalizeAddonPlan(addon.activePlan) !== normalizeAddonPlan(addon.plan)) {
+    return `${addon.activePlan} → ${addon.plan}`
+  }
+  return addon.plan
 }
 
 function pluralize(count, singular, plural = `${singular}s`) {
@@ -99,14 +109,17 @@ export function formatReport(report) {
   const addonRows = report.addons.map((addon) => [
     addon.app,
     addon.service,
-    addon.plan,
+    formatAddonPlan(addon),
     addon.state,
+    addon.maxConnections?.toString() ?? 'n/a',
+    addon.ram ?? 'n/a',
+    addon.diskSize ?? 'n/a',
     formatAddonCost(addon),
   ])
   output.push(renderTable(
-    ['App', 'Service', 'Plan', 'State', 'Cost'],
+    ['App', 'Service', 'Plan', 'State', 'Conn limit', 'RAM', 'Disk Size', 'Cost'],
     addonRows,
-    [4],
+    [4, 5, 6, 7],
   ))
 
   const addonCost = `${formatCurrency(report.addonSummary.estimatedMonthlyCostCents)}/month estimated`

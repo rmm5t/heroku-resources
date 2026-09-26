@@ -6,8 +6,9 @@ import {fetchPipelineResources} from '../src/api.js'
 class FakeClient {
   calls = []
 
-  constructor(pipelines) {
+  constructor(pipelines, responses = {}) {
     this.pipelines = pipelines
+    this.responses = responses
   }
 
   async request(path, options) {
@@ -27,6 +28,7 @@ class FakeClient {
       '/apps/staging-id/dynos': [{size: 'Basic', state: 'up', type: 'web'}],
       '/apps/staging-id/formation': [{quantity: 1, size: 'Basic', type: 'web'}],
       '/dyno-sizes': [{compute: 1, memory: 0.5, name: 'Basic'}],
+      ...this.responses,
     }
     if (!(path in responses)) throw new Error(`Unexpected API path: ${path}`)
     return {body: responses[path]}
@@ -49,6 +51,53 @@ test('finds a pipeline and only fetches apps coupled to the requested stage', as
       'Accept-Expansion': 'addon_service,plan',
     },
   })
+})
+
+test('enriches add-ons with service limits using the Postgres ID and Key-Value Store name', async () => {
+  const pgUrl = 'https://postgres-api.heroku.com/client/v11/databases/pg-id'
+  const redisUrl = 'https://api.data.heroku.com/redis/v0/databases/redis-example'
+  const client = new FakeClient([{id: 'pipeline-id', name: 'example'}], {
+    '/apps/staging-id/addons': [
+      {addon_service: {name: 'heroku-postgresql'}, id: 'pg-id', name: 'postgresql-example'},
+      {addon_service: {name: 'heroku-redis'}, id: 'redis-id', name: 'redis-example'},
+      {addon_service: {name: 'appsignal'}, id: 'appsignal-id', name: 'appsignal-example'},
+    ],
+    [pgUrl]: {
+      plan: 'essential-1',
+      info: [
+        {name: 'Status', values: ['Upgrading Plan: Replacing Primary, Maintenance Scheduled']},
+        {name: 'Connections', values: ['4/20']},
+        {name: 'Data Size', values: ['1 GB / 10 GB (10%)']},
+      ],
+      resource_url: 'must-not-be-retained',
+      database_password: 'private',
+    },
+    [redisUrl]: {
+      plan: 'premium-2',
+      info: [
+        {name: 'Status', values: ['available']},
+        {name: 'Plan Connection Limit', values: [200]},
+        {name: 'Maxmemory', values: ['250 MB']},
+      ],
+    },
+  })
+  const result = await fetchPipelineResources(client, 'example', 'staging')
+
+  assert.deepEqual(result.apps[0].addons.map((addon) => addon.limits), [
+    {diskSize: '10 GB', maxConnections: 20, ram: 'shared'},
+    {diskSize: null, maxConnections: 200, ram: '250 MB'},
+    {diskSize: null, maxConnections: null, ram: null},
+  ])
+  assert.deepEqual(result.apps[0].addons.map(({activePlan, providerStatus}) => ({activePlan, providerStatus})), [
+    {activePlan: 'Essential 1', providerStatus: 'Upgrading Plan: Replacing Primary, Maintenance Scheduled'},
+    {activePlan: 'Premium 2', providerStatus: 'available'},
+    {activePlan: null, providerStatus: null},
+  ])
+  assert.doesNotMatch(JSON.stringify(result), /must-not-be-retained|private/)
+  assert.deepEqual(client.calls.filter(([, path]) => path.startsWith('https://')), [
+    ['get', pgUrl, {retryAuth: false, timeout: 10_000}],
+    ['get', redisUrl, {retryAuth: false, timeout: 10_000}],
+  ])
 })
 
 test('reports a missing pipeline', async () => {

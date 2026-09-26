@@ -1,3 +1,4 @@
+import {normalizeAddonPlan} from './addon-plans.js'
 import {cpuForSize, memoryForSize, monthlyCostForSize} from './specs.js'
 
 export function buildReport(pipeline, stage, apps, dynoSizes) {
@@ -20,17 +21,30 @@ export function buildReport(pipeline, stage, apps, dynoSizes) {
       const costUnit = price?.unit ?? null
       const contract = price?.contract === true
       const metered = price?.metered === true
+      const activePlan = addon.activePlan ?? null
+      const providerStatus = addon.providerStatus ?? null
+      const activePlanName = normalizeAddonPlan(activePlan)
+      const targetPlanName = normalizeAddonPlan(addon.plan?.name) ?? normalizeAddonPlan(addon.plan?.human_name)
+      const plansDiffer = Boolean(activePlanName && targetPlanName && activePlanName !== targetPlanName)
+      const upgradePending = /^Upgrading Plan(?:\s*:|\s*$)/i.test(providerStatus ?? '')
+      const planChangePending = upgradePending || plansDiffer
 
       addons.push({
+        activePlan,
         app: resources.app.name,
         contract,
         costCents,
         costUnit,
+        diskSize: addon.limits?.diskSize ?? null,
+        maxConnections: addon.limits?.maxConnections ?? null,
         metered,
         name: addon.name,
         plan: addon.plan?.human_name ?? addon.plan?.name?.replace(/^[^:]+:/, '') ?? '?',
+        planChangePending,
+        providerStatus,
+        ram: addon.limits?.ram ?? null,
         service: addon.addon_service?.human_name ?? addon.addon_service?.name ?? '?',
-        state: addon.state ?? 'unknown',
+        state: upgradePending ? 'upgrade pending' : plansDiffer ? 'plan change pending' : addon.state ?? 'unknown',
       })
 
       if (costCents === null || costUnit !== 'month' || contract || metered) addonUnknownCost = true

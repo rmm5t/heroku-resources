@@ -10,6 +10,26 @@ Install the published plugin from npm:
 heroku plugins:install heroku-resources
 ```
 
+## Upgrading
+
+Upgrade to the latest published version:
+
+```sh
+heroku plugins:install heroku-resources@latest
+```
+
+To update all installed Heroku plugins:
+
+```sh
+heroku plugins:update
+```
+
+Check the installed version:
+
+```sh
+heroku plugins
+```
+
 ## Usage
 
 ```text

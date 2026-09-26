@@ -46,11 +46,15 @@ example-production  Heroku Postgres  Essential 1  provisioned          20  share
 example-production  Papertrail       Fixa         provisioned         n/a     n/a        n/a  $8/mo
 
 Total: 2 add-ons, $17/month estimated
+
+Grand total: $117/month estimated
 ```
 
-The report includes each app's process type, dyno size and quantity, running count, RAM per dyno, CPU allocation, and estimated maximum monthly cost. A separate add-on table shows each service's plan, state, connection limit, RAM, disk size, and billed cost. The summaries include total allocated RAM and separate dyno and add-on monthly cost estimates for the selected stage.
+The report includes each app's process type, dyno size and quantity, running count, RAM per dyno, CPU allocation, and estimated maximum monthly cost. A separate add-on table shows each service's plan, state, connection limit, RAM, disk size, and billed cost. The summaries include total allocated RAM, separate dyno and add-on monthly cost estimates, and a final grand total combining both costs for the selected stage.
 
 Dyno specifications and available public prices come from the live Platform API, with Heroku CLI pricing as a fallback. Add-on estimates use each resource's billed price, with metered and contract costs identified as unknown. Eco dynos are identified as sharing the account-level $5 Eco plan. CPU and RAM values are allocations based on dyno size, not live utilization.
+
+The grand total adds known monthly dyno and add-on costs. Shared Eco pricing appears once as `+ shared $5 Eco plan`, and any unknown, metered, contract, or non-monthly costs are identified with `+ unknown costs`. JSON output includes a `grandTotal` object with `estimatedMonthlyCostCents`, `includesEcoPlan`, and `unknownCost`; the numeric estimate excludes shared Eco and unknown costs.
 
 Add-on connection and disk limits come from the same live service APIs used by `heroku pg:info` and `heroku redis:info`. `Disk Size` shows the database capacity for Heroku Postgres. `RAM` shows the published instance memory for the active Postgres plan, or the maximum data memory (`Maxmemory`) for Heroku Key-Value Store. Postgres RAM allocations are maintained from the [Heroku plan catalog](https://elements.heroku.com/addons/heroku-postgresql) for Standard, Premium, Private, and Shield plans; Essential plans show `shared`. These values describe capacity limits. During a pending plan change, active limits can differ from the billed plan shown. Other services and unavailable limits display `n/a`; a failed limit lookup does not prevent the rest of the report. JSON output includes `maxConnections` (a number), `ram`, and `diskSize` (strings such as `4 GB`, `shared`, or `64 GB`), or `null` when unavailable.
 

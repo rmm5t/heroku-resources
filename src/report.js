@@ -119,6 +119,11 @@ export function buildReport(pipeline, stage, apps, dynoSizes) {
       || left.plan.localeCompare(right.plan)
       || left.name.localeCompare(right.name),
     ),
+    grandTotal: {
+      estimatedMonthlyCostCents: Math.round(estimatedMonthlyCost * 100) + addonMonthlyCostCents,
+      includesEcoPlan,
+      unknownCost: unknownCost || addonUnknownCost,
+    },
     pipeline,
     rows,
     stage,

@@ -55,6 +55,19 @@ test('labels Essential Postgres RAM as shared', async () => {
   }
 })
 
+test('reads Essential Postgres disk capacity with utilization and compliance annotations', async () => {
+  for (const [plan, dataSize, diskSize] of [
+    ['essential-0', '185 MB / 1 GB (18.08%) (In compliance)', '1 GB'],
+    ['essential-1', '2 GB / 10 GB (20%) (In compliance)', '10 GB'],
+    ['essential-2', '8 GB / 32 GB (25%) (In compliance)', '32 GB'],
+  ]) {
+    const client = clientWithInfo([{name: 'Data Size', values: [dataSize]}], plan)
+    const limits = await fetchAddonLimits(client, POSTGRES)
+    assert.equal(limits.diskSize, diskSize)
+    assert.equal(limits.ram, 'shared')
+  }
+})
+
 test('keeps RAM unknown for unrecognized active plans instead of using the billed plan', async () => {
   const addon = {...POSTGRES, plan: {name: 'heroku-postgresql:standard-2'}}
   for (const plan of [undefined, null, {}, 'standard-1', 'standard-99', 'standard-l-6', 'premium-xl-2', 'essential-3', 'custom-2']) {
@@ -127,6 +140,7 @@ test('does not mistake usage-only or unrecognized values for capacities', async 
     ['33', '14 GB'],
     ['0/unknown', '14 GB / unknown'],
     ['0/200 clients', '14 GB / 64 widgets'],
+    ['0/unknown', '185 MB / 1 GB (18.08%) (In compliance) unexpected'],
     ['0/9007199254740992', '14 GB / unlimited'],
   ]) {
     const client = clientWithInfo([

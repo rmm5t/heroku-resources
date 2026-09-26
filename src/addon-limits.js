@@ -48,7 +48,8 @@ function connectionLimit(value) {
 }
 
 function storageLimit(value) {
-  const match = value.match(/^(\d+(?:,\d{3})*(?:\.\d+)?)\s*(B|[KMGTPE]i?B)(?:\s+\([^)]*\))?$/i)
+  // Essential Postgres appends both utilization and compliance annotations.
+  const match = value.match(/^(\d+(?:,\d{3})*(?:\.\d+)?)\s*(B|[KMGTPE]i?B)(?:\s+\([^)]*\))*$/i)
   return match ? `${match[1]} ${match[2]}` : null
 }
 

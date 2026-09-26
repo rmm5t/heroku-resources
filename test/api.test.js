@@ -67,7 +67,7 @@ test('enriches add-ons with service limits using the Postgres ID and Key-Value S
       info: [
         {name: 'Status', values: ['Upgrading Plan: Replacing Primary, Maintenance Scheduled']},
         {name: 'Connections', values: ['4/20']},
-        {name: 'Data Size', values: ['1 GB / 10 GB (10%)']},
+        {name: 'Data Size', values: ['1 GB / 10 GB (10%) (In compliance)']},
       ],
       resource_url: 'must-not-be-retained',
       database_password: 'private',

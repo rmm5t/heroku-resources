@@ -1,3 +1,5 @@
+import {fetchAddonDetails} from './addon-limits.js'
+
 const V3_HEADER = 'application/vnd.heroku+json; version=3'
 const PIPELINES_HEADER = `${V3_HEADER}.pipelines`
 const SDK_HEADER = `${V3_HEADER}.sdk`
@@ -40,7 +42,10 @@ async function fetchAppResources(heroku, appId) {
   ])
 
   return {
-    addons: addonsResponse.body,
+    addons: await Promise.all(addonsResponse.body.map(async (addon) => ({
+      ...addon,
+      ...await fetchAddonDetails(heroku, addon),
+    }))),
     app: appResponse.body,
     dynos: dynosResponse.body,
     formation: formationResponse.body,

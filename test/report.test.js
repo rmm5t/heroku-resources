@@ -212,13 +212,19 @@ test('reports add-on services and their billed costs separately', () => {
 
   assert.deepEqual(report.addons.map((addon) => addon.app), ['alpha', 'zulu', 'zulu', 'zulu'])
   assert.deepEqual(report.addons[0], {
+    activePlan: null,
     app: 'alpha',
     contract: false,
     costCents: 5500,
     costUnit: 'month',
+    diskSize: null,
+    maxConnections: null,
     metered: false,
     name: 'appsignal-example',
     plan: '3M',
+    planChangePending: false,
+    providerStatus: null,
+    ram: null,
     service: 'AppSignal APM',
     state: 'provisioned',
   })
@@ -230,12 +236,154 @@ test('reports add-on services and their billed costs separately', () => {
   assert.equal(report.addons.find((addon) => addon.service === 'Unknown Service').costCents, null)
 
   const output = formatReport(report)
-  assert.match(output, /App\s+Service\s+Plan\s+State\s+Cost/)
-  assert.match(output, /AppSignal APM\s+3M\s+provisioned\s+\$55\/mo/)
-  assert.match(output, /Metered Service\s+Usage\s+provisioned\s+metered/)
-  assert.match(output, /Contract Service\s+Enterprise\s+provisioning\s+contract/)
-  assert.match(output, /Unknown Service\s+Published Price\s+provisioned\s+n\/a/)
+  assert.match(output, /App\s+Service\s+Plan\s+State\s+Conn limit\s+RAM\s+Disk Size\s+Cost/)
+  assert.match(output, /AppSignal APM\s+3M\s+provisioned\s+n\/a\s+n\/a\s+n\/a\s+\$55\/mo/)
+  assert.match(output, /Metered Service\s+Usage\s+provisioned\s+n\/a\s+n\/a\s+n\/a\s+metered/)
+  assert.match(output, /Contract Service\s+Enterprise\s+provisioning\s+n\/a\s+n\/a\s+n\/a\s+contract/)
+  assert.match(output, /Unknown Service\s+Published Price\s+provisioned\s+n\/a\s+n\/a\s+n\/a\s+n\/a/)
   assert.match(output, /Total: 4 add-ons, \$55\/month estimated \+ unknown costs/)
+})
+
+test('includes add-on capacities in the structured report and aligns the new columns', () => {
+  const report = buildTestReport('example', 'production', [
+    appResources('example-production', [], [], {
+      addons: [
+        {
+          addon_service: {human_name: 'Heroku Postgres'},
+          billed_price: {cents: 5000, unit: 'month'},
+          limits: {diskSize: '64 GB', maxConnections: 200, ram: '4 GB'},
+          name: 'postgresql-example',
+          plan: {human_name: 'Standard 0'},
+          state: 'provisioned',
+        },
+        {
+          addon_service: {human_name: 'Heroku Key-Value Store'},
+          billed_price: {cents: 6000, unit: 'month'},
+          limits: {diskSize: null, maxConnections: 200, ram: '250 MB'},
+          name: 'redis-example',
+          plan: {human_name: 'Premium 2'},
+          state: 'provisioned',
+        },
+      ],
+    }),
+  ])
+
+  assert.deepEqual(report.addons.map(({diskSize, maxConnections, ram}) => ({diskSize, maxConnections, ram})), [
+    {diskSize: null, maxConnections: 200, ram: '250 MB'},
+    {diskSize: '64 GB', maxConnections: 200, ram: '4 GB'},
+  ])
+  const output = formatReport(report)
+  assert.match(output, /Heroku Key-Value Store\s+Premium 2\s+provisioned\s+200\s+250 MB\s+n\/a\s+\$60\/mo/)
+  assert.match(output, /Heroku Postgres\s+Standard 0\s+provisioned\s+200\s+4 GB\s+64 GB\s+\$50\/mo/)
+  const lines = output.split('\n')
+  const header = lines.find((line) => line.includes('Conn limit'))
+  const postgres = lines.find((line) => line.includes('Heroku Postgres'))
+  const redis = lines.find((line) => line.includes('Heroku Key-Value Store'))
+  for (const [line, column, value] of [
+    [postgres, 'RAM', '4 GB'],
+    [postgres, 'Disk Size', '64 GB'],
+    [redis, 'RAM', '250 MB'],
+  ]) {
+    assert.equal(line.indexOf(value) + value.length, header.indexOf(column) + column.length)
+  }
+})
+
+test('shows a pending upgrade with its active-to-target plan transition and active resources', () => {
+  const providerStatus = 'Upgrading Plan: Replacing Primary, Maintenance Scheduled'
+  const report = buildTestReport('example', 'production', [
+    appResources('example-production', [], [], {
+      addons: [{
+        activePlan: 'Standard 0',
+        addon_service: {human_name: 'Heroku Postgres', name: 'heroku-postgresql'},
+        billed_price: {cents: 20000, unit: 'month'},
+        limits: {diskSize: '64 GB', maxConnections: 200, ram: '4 GB'},
+        name: 'postgresql-example',
+        plan: {human_name: 'Standard 2', name: 'heroku-postgresql:standard-2'},
+        providerStatus,
+        state: 'provisioned',
+      }],
+    }),
+  ])
+  const [addon] = JSON.parse(JSON.stringify(report)).addons
+
+  assert.equal(addon.activePlan, 'Standard 0')
+  assert.equal(addon.plan, 'Standard 2')
+  assert.equal(addon.providerStatus, providerStatus)
+  assert.equal(addon.planChangePending, true)
+  assert.equal(addon.state, 'upgrade pending')
+  assert.equal(report.addonSummary.estimatedMonthlyCostCents, 20000)
+  assert.match(formatReport(report), /Standard 0 → Standard 2\s+upgrade pending\s+200\s+4 GB\s+64 GB\s+\$200\/mo/)
+})
+
+test('labels plan mismatches as pending changes without inferring upgrade direction', () => {
+  for (const [service, activePlan, targetPlan] of [
+    ['heroku-postgresql', 'Standard 0', 'Standard 2'],
+    ['heroku-postgresql', 'Standard 2', 'Standard 0'],
+    ['heroku-redis', 'Premium 2', 'Premium 0'],
+  ]) {
+    const report = buildTestReport('example', 'production', [
+      appResources('example-production', [], [], {
+        addons: [{
+          activePlan,
+          addon_service: {name: service},
+          name: 'example-addon',
+          plan: {human_name: targetPlan},
+          providerStatus: 'available',
+          state: 'provisioned',
+        }],
+      }),
+    ])
+    assert.equal(report.addons[0].state, 'plan change pending')
+    assert.equal(report.addons[0].planChangePending, true)
+    assert.ok(formatReport(report).includes(`${activePlan} → ${targetPlan}`))
+  }
+})
+
+test('does not flag completed changes, ordinary maintenance, or missing service metadata', () => {
+  for (const [activePlan, providerStatus, plan, state] of [
+    ['Standard 2', 'Available', {name: 'heroku-postgresql:standard-2'}, 'provisioned'],
+    ['Standard 2', 'Maintenance Scheduled', {human_name: 'Standard 2'}, 'provisioned'],
+    ['Standard 2', 'Upgrading PostgreSQL Version', {human_name: 'Standard 2'}, 'provisioned'],
+    ['Premium XL 6', 'Available', {name: 'heroku-postgresql:premium-xl-6'}, 'provisioned'],
+    ['Standard 2', 'Available', {human_name: ' STANDARD-2 '}, 'provisioned'],
+    ['Standard 2', 'Available', {}, 'provisioned'],
+    [null, null, {human_name: 'Standard 2'}, 'provisioned'],
+    [null, null, {human_name: 'Standard 2'}, 'provisioning'],
+  ]) {
+    const report = buildTestReport('example', 'production', [
+      appResources('example-production', [], [], {
+        addons: [{activePlan, name: 'example-addon', plan, providerStatus, state}],
+      }),
+    ])
+    assert.equal(report.addons[0].planChangePending, false)
+    assert.equal(report.addons[0].state, state)
+    assert.equal(report.addons[0].providerStatus, providerStatus)
+    assert.doesNotMatch(formatReport(report), /→|upgrade pending|plan change pending/)
+  }
+})
+
+test('shows explicit upgrades without inventing unknown or identical plan transitions', () => {
+  for (const [activePlan, plan] of [
+    [null, {human_name: 'Standard 2'}],
+    ['Standard 0', {}],
+    ['Standard 2', {name: 'heroku-postgresql:standard-2'}],
+  ]) {
+    const report = buildTestReport('example', 'production', [
+      appResources('example-production', [], [], {
+        addons: [{
+          activePlan,
+          name: 'example-addon',
+          plan,
+          providerStatus: 'Upgrading Plan: Replacing Primary',
+          state: 'provisioned',
+        }],
+      }),
+    ])
+    assert.equal(report.addons[0].planChangePending, true)
+    assert.equal(report.addons[0].state, 'upgrade pending')
+    assert.match(formatReport(report), /upgrade pending/)
+    assert.doesNotMatch(formatReport(report), /→/)
+  }
 })
 
 test('formats an empty stage without a table', () => {

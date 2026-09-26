@@ -35,10 +35,13 @@
   },
   "scripts": {
     "build": "oclif manifest",
+    "check:addon-limits": "node scripts/check-addon-limits.js",
     "check:dyno-costs": "node scripts/check-dyno-costs.js",
+    "check:upstream": "npm run check:dyno-costs && npm run check:addon-limits",
     "lint": "eslint src test scripts",
     "manifest": "oclif manifest",
     "prepack": "npm run build",
+    "prepublishOnly": "npm run check:upstream",
     "test": "npm run build && node --test"
   },
   "dependencies": {

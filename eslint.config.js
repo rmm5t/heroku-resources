@@ -8,6 +8,7 @@ export default [
     languageOptions: {
       ecmaVersion: 'latest',
       globals: {
+        AbortSignal: 'readonly',
         console: 'readonly',
         fetch: 'readonly',
         process: 'readonly',

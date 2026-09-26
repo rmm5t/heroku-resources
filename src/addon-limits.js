@@ -1,7 +1,8 @@
 import {displayAddonPlan, normalizeAddonPlan} from './addon-plans.js'
 
-// Published RAM allocations, verified 2026-09-25:
-// https://elements.heroku.com/addons/heroku-postgresql
+export const POSTGRES_PLANS_SOURCE = 'https://elements.heroku.com/addons/heroku-postgresql'
+
+// Published RAM allocations; verified with npm run check:addon-limits.
 // Standard, Premium, Private, and Shield share these sizes; L/XL only increase disk capacity.
 const POSTGRES_RAM_BY_SIZE = {
   0: '4 GB',
@@ -16,16 +17,27 @@ const POSTGRES_RAM_BY_SIZE = {
   10: '1 TB',
 }
 
-function postgresRamForPlan(plan) {
-  const name = normalizeAddonPlan(plan)
-  if (!name) return null
-  if (/^essential-[012]$/.test(name)) return 'shared'
+export const POSTGRES_RAM_BY_PLAN = new Map([
+  ['essential-0', 'shared'],
+  ['essential-1', 'shared'],
+  ['essential-2', 'shared'],
+])
 
-  const match = name.match(/^(standard|premium|private|shield)(?:-(l|xl))?-(\d+)$/)
-  if (!match) return null
-  const [, tier, variant, size] = match
-  if (variant && (tier === 'standard' || !['6', '9'].includes(size))) return null
-  return POSTGRES_RAM_BY_SIZE[size] ?? null
+for (const tier of ['standard', 'premium', 'private', 'shield']) {
+  for (const [size, ram] of Object.entries(POSTGRES_RAM_BY_SIZE)) {
+    POSTGRES_RAM_BY_PLAN.set(`${tier}-${size}`, ram)
+  }
+  if (tier !== 'standard') {
+    for (const variant of ['l', 'xl']) {
+      for (const size of [6, 9]) {
+        POSTGRES_RAM_BY_PLAN.set(`${tier}-${variant}-${size}`, POSTGRES_RAM_BY_SIZE[size])
+      }
+    }
+  }
+}
+
+function postgresRamForPlan(plan) {
+  return POSTGRES_RAM_BY_PLAN.get(normalizeAddonPlan(plan)) ?? null
 }
 
 function infoValue(info, name) {

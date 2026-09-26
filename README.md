@@ -98,7 +98,7 @@ JSON output keeps the target/billed plan in `plan` and includes `activePlan`, th
 npm install
 npm test
 npm run lint
-npm run check:dyno-costs
+npm run check:upstream
 npm run build
 heroku plugins:link .
 ```
@@ -112,6 +112,20 @@ heroku plugins:install heroku-resources
 
 Dyno RAM, CPU, and available public pricing come from Heroku's live `/dyno-sizes` Platform API endpoint. Private, Shield, and Fir prices currently require a static fallback copied from Heroku CLI. `npm run check:dyno-costs` compares that fallback with Heroku CLI's current source and fails when it needs updating.
 
+### Upstream data checks
+
+```sh
+npm run check:dyno-costs    # Compare fallback dyno prices with Heroku CLI
+npm run check:addon-limits  # Compare Postgres RAM allocations with Heroku's catalog
+npm run check:upstream      # Run both checks
+```
+
+The add-on check verifies the local Postgres RAM mapping for Standard, Premium, Private, Shield, and Essential plans. It checks Essential's displayed RAM classification (`shared`), since the catalog JSON uses a `0 Bytes` placeholder. Changed allocations, new unmapped plans, and plans missing from the catalog cause a failure. Missing or malformed catalog data also fails the check rather than silently skipping validation.
+
+Add-on prices, connection limits, disk capacity, and Key-Value Store RAM come from live APIs. Their parsing and cost calculations are covered by regression tests, including Essential's compliance annotations. These upstream checks cover the locally maintained fallback data.
+
+Upstream checks require internet access but no Heroku credentials. They run separately from `npm test`, in CI on pushes and pull requests, and every Monday at 08:23 UTC. The **Upstream data checks** workflow can also be run manually from GitHub Actions.
+
 ## Publishing
 
 Authenticate with npm before release:
@@ -121,7 +135,7 @@ npm login
 npm whoami
 ```
 
-Use `npm publish`
+Use `npm publish`. The `prepublishOnly` hook runs `npm run check:upstream` before publishing, and `prepack` builds the CLI manifest. Resolve any upstream-check failures before releasing; update the local mappings or catalog parser as indicated by the error.
 
 ## License
 

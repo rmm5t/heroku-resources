@@ -68,10 +68,21 @@ function formatCostTotal(report) {
   return parts.join(' + ')
 }
 
+function formatGrandTotal({estimatedMonthlyCostCents, includesEcoPlan, unknownCost}) {
+  const parts = []
+  if (estimatedMonthlyCostCents > 0 || !includesEcoPlan) {
+    parts.push(`${formatCurrency(estimatedMonthlyCostCents)}/month estimated`)
+  }
+  if (includesEcoPlan) parts.push('shared $5 Eco plan')
+  if (unknownCost) parts.push('unknown costs')
+  return `Grand total: ${parts.join(' + ')}`
+}
+
 export function formatReport(report) {
   const output = [`Pipeline: ${report.pipeline} (${report.stage})`, '']
+  const grandTotal = formatGrandTotal(report.grandTotal)
   if (report.rows.length === 0) {
-    output.push(`No apps found in the ${report.stage} stage.`)
+    output.push(`No apps found in the ${report.stage} stage.`, '', grandTotal)
     return output.join('\n')
   }
 
@@ -102,7 +113,7 @@ export function formatReport(report) {
   output.push('', 'Add-ons', '')
 
   if (report.addons.length === 0) {
-    output.push('No add-ons.')
+    output.push('No add-ons.', '', grandTotal)
     return output.join('\n')
   }
 
@@ -126,5 +137,6 @@ export function formatReport(report) {
   const unknownAddonCost = report.addonSummary.unknownCost ? ' + unknown costs' : ''
   const addonLabel = pluralize(report.addonSummary.addonCount, 'add-on')
   output.push('', `Total: ${report.addonSummary.addonCount} ${addonLabel}, ${addonCost}${unknownAddonCost}`)
+  output.push('', grandTotal)
   return output.join('\n')
 }

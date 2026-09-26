@@ -111,6 +111,12 @@ test('builds a sorted report and aggregates Cedar resources', () => {
     unknownRam: false,
     upCount: 2,
   })
+  assert.deepEqual(report.grandTotal, {
+    estimatedMonthlyCostCents: 10700,
+    includesEcoPlan: false,
+    unknownCost: false,
+  })
+  assert.match(formatReport(report), /No add-ons\.\n\nGrand total: \$107\/month estimated$/)
 })
 
 test('supports Fir vCPUs, Shield pricing, Eco plans, and unknown one-off costs', () => {
@@ -148,6 +154,12 @@ test('supports Fir vCPUs, Shield pricing, Eco plans, and unknown one-off costs',
   assert.equal(report.summary.unknownCost, true)
   assert.match(formatReport(report), /\$5\/mo shared/)
   assert.match(formatReport(report), /shared \$5 Eco plan \+ unknown\/month estimated/)
+  assert.deepEqual(report.grandTotal, {
+    estimatedMonthlyCostCents: 59000,
+    includesEcoPlan: true,
+    unknownCost: true,
+  })
+  assert.match(formatReport(report), /Grand total: \$590\/month estimated \+ shared \$5 Eco plan \+ unknown costs$/)
 })
 
 test('includes apps without dynos and formats the terminal report', () => {
@@ -160,6 +172,7 @@ test('includes apps without dynos and formats the terminal report', () => {
   assert.match(output, /\$0\/mo/)
   assert.match(output, /Total: 1 app, 0 dynos, 0 up, 0 MB allocated RAM, \$0\/month estimated/)
   assert.match(output, /Add-ons\n\nNo add-ons\./)
+  assert.match(output, /Grand total: \$0\/month estimated$/)
 })
 
 test('reports add-on services and their billed costs separately', () => {
@@ -242,6 +255,67 @@ test('reports add-on services and their billed costs separately', () => {
   assert.match(output, /Contract Service\s+Enterprise\s+provisioning\s+n\/a\s+n\/a\s+n\/a\s+contract/)
   assert.match(output, /Unknown Service\s+Published Price\s+provisioned\s+n\/a\s+n\/a\s+n\/a\s+n\/a/)
   assert.match(output, /Total: 4 add-ons, \$55\/month estimated \+ unknown costs/)
+  assert.deepEqual(report.grandTotal, {
+    estimatedMonthlyCostCents: 5500,
+    includesEcoPlan: false,
+    unknownCost: true,
+  })
+  assert.match(output, /Grand total: \$55\/month estimated \+ unknown costs$/)
+})
+
+test('combines dyno dollars and add-on cents in the grand total', () => {
+  const report = buildTestReport('example', 'production', [
+    appResources(
+      'example-production',
+      [{size: 'Basic', state: 'up', type: 'web'}],
+      [{quantity: 1, size: 'Basic', type: 'web'}],
+      {addons: [{name: 'example-addon', billed_price: {cents: 1599, unit: 'month'}}]},
+    ),
+  ])
+
+  assert.deepEqual(JSON.parse(JSON.stringify(report)).grandTotal, {
+    estimatedMonthlyCostCents: 2299,
+    includesEcoPlan: false,
+    unknownCost: false,
+  })
+  assert.match(formatReport(report), /Total: 1 add-on, \$15\.99\/month estimated\n\nGrand total: \$22\.99\/month estimated$/)
+})
+
+test('includes shared Eco pricing once in the grand total across multiple apps', () => {
+  for (const addons of [[], [{name: 'example-addon', billed_price: {cents: 1500, unit: 'month'}}]]) {
+    const report = buildTestReport('example', 'production', ['alpha', 'beta'].map((name) => appResources(
+      name,
+      [{size: 'Eco', state: 'up', type: 'web'}],
+      [{quantity: 1, size: 'Eco', type: 'web'}],
+      {addons: name === 'alpha' ? addons : []},
+    )))
+
+    assert.deepEqual(report.grandTotal, {
+      estimatedMonthlyCostCents: addons.length ? 1500 : 0,
+      includesEcoPlan: true,
+      unknownCost: false,
+    })
+    const total = addons.length ? '$15/month estimated + shared $5 Eco plan' : 'shared $5 Eco plan'
+    assert.ok(formatReport(report).endsWith(`Grand total: ${total}`))
+  }
+})
+
+test('excludes non-monthly add-on prices from the grand total and marks them unknown', () => {
+  const report = buildTestReport('example', 'production', [
+    appResources(
+      'example-production',
+      [{size: 'Basic', state: 'up', type: 'web'}],
+      [{quantity: 1, size: 'Basic', type: 'web'}],
+      {addons: [{name: 'example-addon', billed_price: {cents: 500, unit: 'hour'}}]},
+    ),
+  ])
+
+  assert.deepEqual(report.grandTotal, {
+    estimatedMonthlyCostCents: 700,
+    includesEcoPlan: false,
+    unknownCost: true,
+  })
+  assert.match(formatReport(report), /Grand total: \$7\/month estimated \+ unknown costs$/)
 })
 
 test('includes add-on capacities in the structured report and aligns the new columns', () => {
@@ -389,7 +463,12 @@ test('shows explicit upgrades without inventing unknown or identical plan transi
 test('formats an empty stage without a table', () => {
   const report = buildTestReport('example', 'development', [])
 
-  assert.equal(formatReport(report), 'Pipeline: example (development)\n\nNo apps found in the development stage.')
+  assert.equal(formatReport(report), 'Pipeline: example (development)\n\nNo apps found in the development stage.\n\nGrand total: $0/month estimated')
+  assert.deepEqual(report.grandTotal, {
+    estimatedMonthlyCostCents: 0,
+    includesEcoPlan: false,
+    unknownCost: false,
+  })
 })
 
 test('uses singular summary labels', () => {
@@ -436,4 +515,6 @@ test('uses live dyno size metadata for resources and public pricing', () => {
   assert.equal(report.rows[0].cpu, '1 dedicated (7x)')
   assert.equal(report.rows[0].monthlyCost, 12.34)
   assert.match(formatReport(report), /\$12\.34\/mo/)
+  assert.equal(report.grandTotal.estimatedMonthlyCostCents, 1234)
+  assert.match(formatReport(report), /Grand total: \$12\.34\/month estimated$/)
 })
